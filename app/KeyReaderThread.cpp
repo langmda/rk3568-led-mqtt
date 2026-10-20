@@ -15,6 +15,7 @@
 
 const char *KeyReaderThread::kDevicePath   = "/dev/myled";
 const int   KeyReaderThread::kErrorDelayMs = 1000;
+const int KeyReaderThread::kPollIntervalMs = 50;
 
 KeyReaderThread::KeyReaderThread(QObject *parent)
     : QThread(parent)
@@ -36,15 +37,7 @@ QString KeyReaderThread::lastOpenError() const
 
 void KeyReaderThread::stop()
 {
-    // 先清运行标志, 再关闭 fd。
-    // close() 会让正在阻塞的 read() 立刻返回 -1/EBADF, run() 的循环随即退出。
-    m_running.store(false);
-
-    const int fd = m_fd;
-    if (fd >= 0) {
-        ::close(fd);
-        m_fd = -1;
-    }
+    m_running.store(false);     //切换运行标志位
 }
 
 void KeyReaderThread::run()
@@ -75,27 +68,35 @@ void KeyReaderThread::run()
         while (m_running.load()) {
             const ssize_t n = ::read(fd, buf, 1);
 
-            if (n < 0) {
+            if (n == 1)
+            {
+                if (buf[0] == '1')
+                    emit keyPressed();
+                continue;               // 立刻再读，可能还有事件
+            }
+
+            if (n < 0)
+            {
                 const int err = errno;
 
-                if (err == EINTR) {
-                    // 被信号打断, 不是错误, 直接重新读
+                if (err == EAGAIN || err == EWOULDBLOCK) {
+                    // 没有按键事件：睡一小会儿再试，退出延迟 <= kPollIntervalMs
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(kPollIntervalMs));
                     continue;
                 }
-
-                // 其他错误: 记录并等 1 秒重试
-                qWarning("[KeyReaderThread] read(%s) failed: %s (errno=%d), %d ms 后重试",
-                         kDevicePath, std::strerror(err), err, kErrorDelayMs);
-
-                for (int i = 0; i < kErrorDelayMs / 100 && m_running.load(); ++i)
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                continue;
+                else if (err == EINTR)
+                    continue;           // 被信号打断，重读
+                else                    // 真错误(如模块被 rmmod 返回 ENODEV)：记录后重开设备
+                {
+                    qWarning("[KeyReaderThread] read failed: %s (errno=%d)",
+                             std::strerror(err), err);
+                    for (int i = 0; i < kErrorDelayMs / 100 && m_running.load(); ++i)       //睡1s，每睡100ms检查一次m_running
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    break;
+                }
             }
-
-            if (n == 1 && buf[0] == '1') {          //读取成功，有按键按下
-                emit keyPressed();
-            }
-            // n == 0 或非 '1' 的字节: 读取异常，忽略, 继续读
+            // n == 0: 忽略，继续
 
             if (!m_running.load())
                 break;

@@ -73,8 +73,8 @@ MainWindow::MainWindow(QWidget *parent)
             this,             &MainWindow::onReconnectTimeout);     //断线重连定时器，超时时触发重连函数
 
     m_mqttClient->setWillTopic(QStringLiteral("topeet/led/status"));            //遗嘱
-    m_mqttClient->setWillMessage(QStringLiteral("offline"));
-    m_mqttClient->setWillQos(0);
+    m_mqttClient->setWillMessage(QByteArrayLiteral("offline"));
+    m_mqttClient->setWillQoS(0);
     m_mqttClient->setWillRetain(true);   // 保留，让新订阅者也能看到离线状态
 
     setLed(false);      // 默认 LED 为"灭"(同时给设备写一次 "0", 保证上电状态确定)
@@ -171,6 +171,9 @@ void MainWindow::onKeyPressed()         //按键按下后触发
     ++m_keyCount;
     ui->m_keyCountLabel->setText(QStringLiteral("按键次数：%1").arg(m_keyCount));
     qDebug("[MainWindow] key pressed, count=%d", m_keyCount);
+
+    m_ledOn = !m_ledOn;
+    updateLedLabel();
 
     // 按键事件上报 MQTT
     publishStatus(QStringLiteral("key_pressed"));

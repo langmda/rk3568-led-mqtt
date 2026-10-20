@@ -46,11 +46,12 @@ protected:
 
 private:
     static const char *kDevicePath;   // "/dev/myled"
-    static const int   kErrorDelayMs; // 读错误后的重试间隔: 1000ms
+    static const int   kErrorDelayMs; // 1000ms
+    static const int   kPollIntervalMs; // 新增：50ms 轮询间隔
 
-    std::atomic<bool> m_running;      // 线程运行标志
-    int               m_fd;           // /dev/myled 的文件描述符
-    QString           m_openError;    // 最近一次打开失败原因(仅线程内写)
+    std::atomic<bool> m_running;
+    int               m_fd;           // 只在 run() 内访问，stop() 不再碰
+    QString           m_openError;
 };
 
 #endif // KEYREADERTHREAD_H

@@ -1,3 +1,5 @@
+<img width="1706" height="1279" alt="dc8338977367e77b6b3a2dc8e7ed0fc0" src="https://github.com/user-attachments/assets/a696f508-f2bb-4e4f-9c62-8f1709ea99bd" />
+<img width="1706" height="1279" alt="ff65e3185f4e010b171385342404c463" src="https://github.com/user-attachments/assets/04ca0f6e-0014-4870-8350-db828508bc43" />
 # RK3568 Linux 字符设备驱动（LED + 按键）与 Qt MQTT 远程控制
 
 基于 RK3568 开发板的完整嵌入式 Linux 项目，覆盖**内核驱动 → 用户态应用 → 网络通信**全链路。
